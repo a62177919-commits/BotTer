@@ -1,4 +1,4 @@
-const { TelegramClient } = require("telegram");
+const { TelegramClient, events } = require("telegram"); // Добавили events
 const { StringSession } = require("telegram/sessions");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
@@ -14,60 +14,62 @@ let isTalkMode = false;
   console.log("Соединение...");
   const client = new TelegramClient(stringSession, apiId, apiHash, {
     connectionRetries: 5,
+    // Добавляем настройки для более стабильного соединения
+    useWSS: true, 
   });
 
   await client.connect();
   console.log("--- БОТ УСПЕШНО ЗАПУЩЕН ---");
-  console.log("Слушаю ваши сообщения...");
+  
+  // Получаем информацию о себе, чтобы знать свой ID
+  const me = await client.getMe();
+  console.log(`Бот запущен от имени: ${me.firstName} (ID: ${me.id})`);
 
+  // Используем другой способ прослушки событий
   client.addEventHandler(async (event) => {
     const message = event.message;
+    if (!message) return;
 
-    // Выводим в логи GitHub всё, что бот видит (для отладки)
-    if (message && message.message) {
-        console.log(`[LOG] Вижу текст: ${message.message} (Исходящее: ${message.out})`);
-    }
+    const text = message.message ? message.message.toLowerCase().trim() : "";
+    
+    // ЛОГИРУЕМ ВООБЩЕ ВСЁ (даже чужие сообщения, чтобы проверить связь)
+    console.log(`[DEBUG] Пришло сообщение: "${text}" от ID: ${message.fromId}`);
 
-    // Проверяем: сообщение должно быть исходящим (от тебя)
-    if (message && message.out) {
-      const text = message.message ? message.message.toLowerCase().trim() : "";
-
-      // Команда .talk
+    // Проверяем, что это наше сообщение (команды)
+    if (message.out) {
       if (text === ".talk") {
         isTalkMode = true;
         await client.editMessage(message.chatId, {
           message: message.id,
-          text: "🤖 **AI Mode: ON**\nТеперь я отвечаю на всё!",
+          text: "🤖 **AI активен!**",
         });
         return;
       }
 
-      // Команда .talkoff
       if (text === ".talkoff") {
         isTalkMode = false;
         await client.editMessage(message.chatId, {
           message: message.id,
-          text: "🔇 **AI Mode: OFF**",
+          text: "🔇 **AI выключен.**",
         });
         return;
       }
 
-      // Если режим включен и это не команда
+      // Если режим включен и мы пишем (не команду)
       if (isTalkMode && !text.startsWith(".")) {
         try {
           const result = await model.generateContent(message.message);
           const response = await result.response;
-          
           await client.sendMessage(message.chatId, {
             message: `**Gemini:** ${response.text()}`,
             replyTo: message.id,
           });
         } catch (e) {
-          console.error("Ошибка Gemini:", e.message);
+          console.log("Ошибка Gemini:", e.message);
         }
       }
     }
-  });
+  }, new events.NewMessage({})); // Слушаем абсолютно все новые сообщения
 
   await new Promise(() => {}); 
 })();
