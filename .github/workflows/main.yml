@@ -1,0 +1,38 @@
+name: TG-AI-JS-Runner
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 */6 * * *' # Перезапуск каждые 6 часов
+  workflow_dispatch: # Позволяет запускать вручную кнопкой
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: tg-ai-bot
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Assistant
+        env:
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          STRING_SESSION: ${{ secrets.STRING_SESSION }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          # Бот будет работать 5.5 часов, затем воркфлоу завершится для чистого перезапуска
+          timeout 19800s node index.js || echo "Завершение по таймеру..."
+          
