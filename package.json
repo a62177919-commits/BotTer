@@ -1,0 +1,11 @@
+{
+  "name": "tg-ai-bot-js",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "telegram": "^2.22.2",
+    "@google/generative-ai": "^0.21.0",
+    "input": "^1.0.1"
+  }
+}
+
